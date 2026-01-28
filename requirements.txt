@@ -1,5 +1,5 @@
 kafka-python
-pandas
+polars
 scikit-learn
 psycopg2-binary
 joblib

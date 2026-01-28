@@ -38,7 +38,7 @@ for message in consumer:
     if model:
         # Predict probability of 'Made' (Index 1)
         prob = model.predict_proba([[dist]])[0][1]
-        xp = prob * (3 if dist > 23 else 2)
+        xp = float(prob * (3 if dist > 23 else 2))
     else:
         # Fallback logic (Heuristic)
         xp = 1.0 if dist < 10 else 0.8
@@ -48,6 +48,6 @@ for message in consumer:
     # Write to DB
     cur.execute(
         "INSERT INTO shot_telemetry (game_id, player_name, shot_distance, expected_points, shot_grade) VALUES (%s, %s, %s, %s, %s)",
-        (data['game_id'], data['player'], dist, xp, grade)
+        (str(data['game_id']), str(data['player']), int(dist), float(xp), grade)
     )
     conn.commit()
