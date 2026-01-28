@@ -17,15 +17,15 @@ CourtVision solves the "batch latency" problem by evaluating NBA shot quality (E
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Producer   │───▶ │    Kafka    │────▶│  Consumer   │────▶│ PostgreSQL  │
+│  Producer   │───▶ │    Kafka    │────▶│  Consumer   │────▶│ PostgreSQL│
 │  (Streamer) │     │   Broker    │     │ (Inference) │     │    (DB)     │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-                                              │
-                                              ▼
-                                        ┌───────────┐
-                                        │  Retrain  │
-                                        │  Service  │
-                                        └───────────┘
+                                              │                    │
+                                              ▼                    ▼
+                                        ┌───────────┐      ┌─────────────┐
+                                        │  Retrain  │      │  Streamlit  │
+                                        │  Service  │      │  Dashboard  │
+                                        └───────────┘      └─────────────┘
 ```
 
 ## Tech Stack
@@ -35,6 +35,7 @@ CourtVision solves the "batch latency" problem by evaluating NBA shot quality (E
 | Message Broker | Apache Kafka | Event streaming with log-based persistence |
 | Database | PostgreSQL | Time-series storage for enriched telemetry |
 | ML Framework | Scikit-Learn | Shot probability prediction |
+| Dashboard | Streamlit + Plotly | Real-time visualization and analytics |
 | Containerization | Docker + DevContainers | Reproducible development environment |
 | Language | Python 3.11 | Application code |
 
@@ -107,10 +108,51 @@ This starts the producer and consumer alongside the infrastructure. The consumer
 python src/retrain.py  # Consumer picks up new model automatically
 ```
 
+### 6. Launch the Dashboard
+
+```bash
+streamlit run src/dashboard.py
+```
+
+Open http://localhost:8501 to view live analytics.
+
+## Dashboard
+
+The Streamlit dashboard provides real-time visualization of shot telemetry data:
+
+![Dashboard Preview](docs/dashboard-preview.png)
+
+### Features
+
+| Section | Description |
+|---------|-------------|
+| **Key Metrics** | Total shots, avg expected points, premium shot %, 3PT attempts |
+| **Shot Grades** | Gauge charts showing A/B/C grade distribution |
+| **Zone Analysis** | Shot counts and avg XP by court zone (Rim, Paint, Mid-Range, Long 2, 3PT) |
+| **Shot Map** | Simulated court visualization of shot distribution |
+| **Distance Analysis** | Histogram and scatter plot of shots by distance |
+| **Player Leaderboard** | Top 10 players by volume with XP overlay |
+| **Live Activity** | Time series of shot activity (last hour) |
+| **Recent Shots** | Table of latest 20 shots with details |
+
+### Shot Grading System
+
+| Grade | Expected Points | Description |
+|-------|-----------------|-------------|
+| **A** | > 1.1 XP | Premium shot - high value opportunity |
+| **B** | 0.9 - 1.1 XP | Good shot - acceptable quality |
+| **C** | < 0.9 XP | Poor shot - low value attempt |
+
+### Settings
+
+- **Auto-refresh**: Toggle 10-second automatic refresh
+- **Data limit**: Adjust number of data points loaded (100-5000)
+
 ## Services
 
 | Service | Port | URL |
 |---------|------|-----|
+| Streamlit Dashboard | 8501 | http://localhost:8501 |
 | Kafka UI | 8080 | http://localhost:8080 |
 | PostgreSQL | 5432 | localhost:5432 |
 | Kafka Broker | 9092 | localhost:9092 |
@@ -126,7 +168,8 @@ courtvision/
 ├── src/
 │   ├── producer.py          # Event streamer (simulates live feed)
 │   ├── consumer.py          # Inference engine + DB persistence
-│   └── retrain.py           # MLOps retraining loop
+│   ├── retrain.py           # MLOps retraining loop
+│   └── dashboard.py         # Streamlit real-time dashboard
 ├── docker-compose.yml       # Infrastructure services
 ├── init.sql                 # Database schema
 ├── requirements.txt         # Python dependencies

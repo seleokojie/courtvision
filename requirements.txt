@@ -4,3 +4,7 @@ scikit-learn
 psycopg2-binary
 joblib
 numpy
+streamlit
+plotly
+pandas
+sqlalchemy
