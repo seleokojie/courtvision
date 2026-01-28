@@ -1,6 +1,8 @@
 import polars as pl
 import numpy as np
 from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import log_loss, brier_score_loss, roc_auc_score
 import joblib
 
 # Chunk size for streaming through large files
@@ -190,7 +192,21 @@ def retrain_model():
     X = np.vstack(X_chunks)
     y = np.concatenate(y_chunks)
     
-    print(f"\n[Phase 3/3] Training XGBoost on {len(y):,} samples...")
+    # Train/test split for proper validation (80/20 split)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    print(f"\n[Phase 3/3] Training XGBoost...")
+    print(f"  Training samples: {len(y_train):,}")
+    print(f"  Test samples: {len(y_test):,}")
+    print(f"  Class balance - Made: {y_train.mean():.3f}, Missed: {1-y_train.mean():.3f}")
+    
+    # Calculate scale_pos_weight for class imbalance
+    # (ratio of negative to positive samples)
+    neg_count = (y_train == 0).sum()
+    pos_count = (y_train == 1).sum()
+    scale_pos_weight = neg_count / pos_count
     
     # XGBoost configuration optimized for shot prediction
     clf = XGBClassifier(
@@ -199,23 +215,42 @@ def retrain_model():
         learning_rate=0.1,
         subsample=0.8,
         colsample_bytree=0.8,
+        scale_pos_weight=scale_pos_weight,  # Handle class imbalance
         random_state=42,
         n_jobs=-1,  # Use all cores
-        eval_metric='logloss'
+        eval_metric='logloss',
+        early_stopping_rounds=10  # Stop if no improvement
     )
     
-    clf.fit(X, y)
+    # Train with early stopping using test set as validation
+    clf.fit(
+        X_train, y_train,
+        eval_set=[(X_test, y_test)],
+        verbose=False
+    )
     
     # Save model artifact
     joblib.dump(clf, 'model.pkl')
     
-    # Calculate and display metrics
-    train_accuracy = clf.score(X, y)
-    y_pred_proba = clf.predict_proba(X)[:, 1]
+    # Calculate metrics on TEST set (not training set!)
+    y_pred_proba = clf.predict_proba(X_test)[:, 1]
+    y_pred = clf.predict(X_test)
+    
+    test_accuracy = (y_pred == y_test).mean()
+    test_logloss = log_loss(y_test, y_pred_proba)
+    test_brier = brier_score_loss(y_test, y_pred_proba)
+    test_auc = roc_auc_score(y_test, y_pred_proba)
     
     # Feature importance
-    print(f"\nModel trained successfully!")
-    print(f"Training accuracy: {train_accuracy:.4f}")
+    print(f"\n{'='*50}")
+    print(f"MODEL EVALUATION (on held-out test set)")
+    print(f"{'='*50}")
+    print(f"  Accuracy:    {test_accuracy:.4f}")
+    print(f"  Log Loss:    {test_logloss:.4f}  (lower is better)")
+    print(f"  Brier Score: {test_brier:.4f}  (lower is better, measures calibration)")
+    print(f"  ROC AUC:     {test_auc:.4f}  (higher is better)")
+    print(f"  Best iteration: {clf.best_iteration}")
+    
     print(f"\nFeature Importance:")
     importance = clf.feature_importances_
     for name, imp in sorted(zip(FEATURE_NAMES, importance), key=lambda x: -x[1]):
