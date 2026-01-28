@@ -23,6 +23,8 @@ FEATURE_ORDER = [
     'is_fadeaway',
     'is_bank',
     'is_alley_oop',
+    'is_home',
+    'is_pullup',
     'player_skill_rating'
 ]
 
@@ -94,6 +96,8 @@ def build_feature_vector(data, player_skills):
         data.get('is_fadeaway', 0),         # is_fadeaway
         data.get('is_bank', 0),             # is_bank
         data.get('is_alley_oop', 0),        # is_alley_oop
+        data.get('is_home', 0),             # is_home
+        data.get('is_pullup', 0),           # is_pullup
         skill_rating,                        # player_skill_rating
     ]
     return np.array(features).reshape(1, -1)

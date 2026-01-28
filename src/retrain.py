@@ -21,6 +21,8 @@ FEATURE_NAMES = [
     'is_fadeaway',
     'is_bank',
     'is_alley_oop',
+    'is_home',
+    'is_pullup',
     'player_skill_rating'
 ]
 
@@ -49,6 +51,7 @@ def extract_shot_type_features(description: pl.Series) -> dict:
         'is_fadeaway': desc_lower.str.contains('fadeaway|fade away').cast(pl.Int8),
         'is_bank': desc_lower.str.contains('bank').cast(pl.Int8),
         'is_alley_oop': desc_lower.str.contains('alley oop').cast(pl.Int8),
+        'is_pullup': desc_lower.str.contains('pull-up|pullup|pull up').cast(pl.Int8),
     }
 
 
@@ -146,6 +149,11 @@ def retrain_model():
                 (pl.col('shot_distance') > 23).cast(pl.Int8).alias('is_three'),
             ])
             
+            # Add is_home: shot taken by home team (homedescription is not empty)
+            df = df.with_columns([
+                (pl.col('homedescription').is_not_null() & (pl.col('homedescription') != '')).cast(pl.Int8).alias('is_home')
+            ])
+            
             # Add player skill rating
             df = df.with_columns([
                 pl.col('player1_name').map_elements(
@@ -167,6 +175,8 @@ def retrain_model():
                 'is_fadeaway',
                 'is_bank',
                 'is_alley_oop',
+                'is_home',
+                'is_pullup',
                 'player_skill_rating'
             ]
             
@@ -256,12 +266,12 @@ def retrain_model():
     for name, imp in sorted(zip(FEATURE_NAMES, importance), key=lambda x: -x[1]):
         print(f"  {name}: {imp:.4f}")
     
-    # Sample predictions
+    # Sample predictions (14 features: distance, period, seconds, is_three, is_dunk, is_layup, is_hook, is_tip, is_fadeaway, is_bank, is_alley_oop, is_home, is_pullup, player_skill)
     print(f"\nSample predictions:")
-    print(f"  3-foot dunk by elite player: {clf.predict_proba([[3, 2, 300, 0, 1, 0, 0, 0, 0, 0, 0, 0.55]])[0][1]:.3f}")
-    print(f"  3-foot layup by avg player:  {clf.predict_proba([[3, 2, 300, 0, 0, 1, 0, 0, 0, 0, 0, 0.45]])[0][1]:.3f}")
-    print(f"  25-foot 3PT by avg player:   {clf.predict_proba([[25, 2, 300, 1, 0, 0, 0, 0, 0, 0, 0, 0.45]])[0][1]:.3f}")
-    print(f"  25-foot buzzer beater:       {clf.predict_proba([[25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.45]])[0][1]:.3f}")
+    print(f"  3-foot home dunk by elite player:  {clf.predict_proba([[3, 2, 300, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0.55]])[0][1]:.3f}")
+    print(f"  3-foot away layup by avg player:   {clf.predict_proba([[3, 2, 300, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.45]])[0][1]:.3f}")
+    print(f"  25-foot home 3PT by avg player:    {clf.predict_proba([[25, 2, 300, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.45]])[0][1]:.3f}")
+    print(f"  25-foot away pullup buzzer beater: {clf.predict_proba([[25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0.45]])[0][1]:.3f}")
 
 
 if __name__ == "__main__":

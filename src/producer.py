@@ -36,6 +36,7 @@ def extract_shot_type(description):
         'is_fadeaway': 1 if 'fadeaway' in desc_lower or 'fade away' in desc_lower else 0,
         'is_bank': 1 if 'bank' in desc_lower else 0,
         'is_alley_oop': 1 if 'alley oop' in desc_lower else 0,
+        'is_pullup': 1 if 'pull-up' in desc_lower or 'pullup' in desc_lower or 'pull up' in desc_lower else 0,
     }
 
 
@@ -86,6 +87,9 @@ def stream_data(file_path):
                 distance = int(row['shot_distance'])
                 shot_types = extract_shot_type(description)
                 
+                # Determine if home team shot
+                is_home = 1 if (row['homedescription'] and row['homedescription'] != '') else 0
+                
                 event = {
                     "game_id": str(row['game_id']),
                     "player": str(row['player1_name']) if row['player1_name'] else "Unknown",
@@ -93,7 +97,8 @@ def stream_data(file_path):
                     "period": int(row['period']) if row['period'] else 1,
                     "seconds_remaining": parse_time_remaining(row['pctimestring']),
                     "is_three": 1 if distance > 23 else 0,
-                    **shot_types,  # Unpack shot type features
+                    **shot_types,  # Unpack shot type features (includes is_pullup)
+                    "is_home": is_home,
                     "result": row['event_type'],
                     "timestamp": time.time()
                 }
