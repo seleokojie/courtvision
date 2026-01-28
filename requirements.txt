@@ -8,3 +8,4 @@ streamlit
 plotly
 pandas
 sqlalchemy
+xgboost
