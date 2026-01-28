@@ -7,6 +7,9 @@ __pycache__/
 *.pkl
 model.pkl
 
+# CDN cache (raw JSON files from NBA CDN - large, regenerable)
+data/cdn_cache/
+
 # C extensions
 *.so
 
