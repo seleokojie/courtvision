@@ -1,16 +1,20 @@
 import polars as pl
 import json
 import time
+import os
 from kafka import KafkaProducer
 
 # Chunk size for streaming through large files
 CHUNK_SIZE = 10000
 
+# Get Kafka bootstrap servers from environment variable (default to localhost for local dev)
+KAFKA_BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+
 def stream_data(file_path):
     # Wait for Kafka to wake up
     time.sleep(10)
     producer = KafkaProducer(
-        bootstrap_servers=['localhost:9092'],
+        bootstrap_servers=[KAFKA_BOOTSTRAP_SERVERS],
         value_serializer=lambda x: json.dumps(x).encode('utf-8')
     )
     

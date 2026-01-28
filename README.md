@@ -17,7 +17,7 @@ CourtVision solves the "batch latency" problem by evaluating NBA shot quality (E
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Producer   │────▶│    Kafka    │────▶│  Consumer   │────▶│ PostgreSQL  │
+│  Producer   │───▶ │    Kafka    │────▶│  Consumer   │────▶│ PostgreSQL  │
 │  (Streamer) │     │   Broker    │     │ (Inference) │     │    (DB)     │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
                                               │
@@ -91,6 +91,20 @@ python src/consumer.py
 
 ```bash
 python src/producer.py
+```
+
+### Alternative: Run in Containers
+
+Run both producer and consumer as Docker containers:
+
+```bash
+docker-compose --profile app up --build
+```
+
+This starts the producer and consumer alongside the infrastructure. The consumer auto-reloads the model every 60 seconds, so retraining works seamlessly:
+
+```bash
+python src/retrain.py  # Consumer picks up new model automatically
 ```
 
 ## Services
