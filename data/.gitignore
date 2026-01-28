@@ -1,0 +1,4 @@
+# Ignore the dataset file (user must download from Kaggle)
+nba_plays.csv
+*.csv
+!README.md
