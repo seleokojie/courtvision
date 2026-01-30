@@ -2,6 +2,7 @@ import polars as pl
 import json
 import time
 import os
+import re
 from kafka import KafkaProducer
 
 # Chunk size for streaming through large files
@@ -9,6 +10,35 @@ CHUNK_SIZE = 10000
 
 # Get Kafka bootstrap servers from environment variable (default to localhost for local dev)
 KAFKA_BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+
+
+def parse_time_remaining(time_str):
+    """Parse 'MM:SS' format to seconds remaining in period."""
+    if time_str is None:
+        return 360  # Default to 6 minutes (mid-period)
+    try:
+        parts = str(time_str).split(':')
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+    except:
+        pass
+    return 360
+
+
+def extract_shot_type(description):
+    """Extract shot type features from description text."""
+    desc_lower = description.lower() if description else ""
+    return {
+        'is_dunk': 1 if 'dunk' in desc_lower else 0,
+        'is_layup': 1 if 'layup' in desc_lower else 0,
+        'is_hook': 1 if 'hook' in desc_lower else 0,
+        'is_tip': 1 if 'tip' in desc_lower else 0,
+        'is_fadeaway': 1 if 'fadeaway' in desc_lower or 'fade away' in desc_lower else 0,
+        'is_bank': 1 if 'bank' in desc_lower else 0,
+        'is_alley_oop': 1 if 'alley oop' in desc_lower else 0,
+        'is_pullup': 1 if 'pull-up' in desc_lower or 'pullup' in desc_lower or 'pull up' in desc_lower else 0,
+    }
+
 
 def stream_data(file_path):
     # Wait for Kafka to wake up
@@ -53,10 +83,22 @@ def stream_data(file_path):
             
             # Stream events to Kafka
             for row in df.iter_rows(named=True):
+                description = row['description']
+                distance = int(row['shot_distance'])
+                shot_types = extract_shot_type(description)
+                
+                # Determine if home team shot
+                is_home = 1 if (row['homedescription'] and row['homedescription'] != '') else 0
+                
                 event = {
                     "game_id": str(row['game_id']),
                     "player": str(row['player1_name']) if row['player1_name'] else "Unknown",
-                    "distance": int(row['shot_distance']),
+                    "distance": distance,
+                    "period": int(row['period']) if row['period'] else 1,
+                    "seconds_remaining": parse_time_remaining(row['pctimestring']),
+                    "is_three": 1 if distance > 23 else 0,
+                    **shot_types,  # Unpack shot type features (includes is_pullup)
+                    "is_home": is_home,
                     "result": row['event_type'],
                     "timestamp": time.time()
                 }
