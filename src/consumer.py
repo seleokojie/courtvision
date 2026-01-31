@@ -11,7 +11,8 @@ KAFKA_BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 
 # Feature order must match training (retrain.py FEATURE_NAMES)
-FEATURE_ORDER = [
+# 14 base features + 12 CDN features = 26 total
+BASE_FEATURE_ORDER = [
     'shot_distance',
     'period',
     'seconds_remaining',
@@ -27,6 +28,23 @@ FEATURE_ORDER = [
     'is_pullup',
     'player_skill_rating'
 ]
+
+CDN_FEATURE_ORDER = [
+    'is_fastbreak',
+    'is_second_chance',
+    'is_from_turnover',
+    'is_points_in_paint',
+    'desc_pullup',
+    'desc_driving',
+    'desc_step_back',
+    'desc_fadeaway',
+    'desc_running',
+    'desc_floating',
+    'desc_turnaround',
+    'desc_cutting',
+]
+
+FEATURE_ORDER = BASE_FEATURE_ORDER + CDN_FEATURE_ORDER
 
 # Default league average for unknown players
 LEAGUE_AVG_FG = 0.45
@@ -80,10 +98,11 @@ consumer = KafkaConsumer(
 )
 
 def build_feature_vector(data, player_skills):
-    """Build feature vector from event data in correct order."""
+    """Build feature vector from event data in correct order (26 features)."""
     player = data.get('player', 'Unknown')
     skill_rating = player_skills.get(player, LEAGUE_AVG_FG)
     
+    # 14 base features
     features = [
         data.get('distance', 15),           # shot_distance
         data.get('period', 1),              # period
@@ -100,6 +119,23 @@ def build_feature_vector(data, player_skills):
         data.get('is_pullup', 0),           # is_pullup
         skill_rating,                        # player_skill_rating
     ]
+    
+    # 12 CDN features (defaults to 0 if not present in event)
+    features.extend([
+        data.get('is_fastbreak', 0),
+        data.get('is_second_chance', 0),
+        data.get('is_from_turnover', 0),
+        data.get('is_points_in_paint', 0),
+        data.get('desc_pullup', 0),
+        data.get('desc_driving', 0),
+        data.get('desc_step_back', 0),
+        data.get('desc_fadeaway', 0),
+        data.get('desc_running', 0),
+        data.get('desc_floating', 0),
+        data.get('desc_turnaround', 0),
+        data.get('desc_cutting', 0),
+    ])
+    
     return np.array(features).reshape(1, -1)
 
 
@@ -125,7 +161,7 @@ def get_shot_type_label(data):
         return 'Jump Shot'
 
 
-print("Worker listening for events (XGBoost model with enhanced features)...")
+print(f"Worker listening for events (XGBoost model with {len(FEATURE_ORDER)} features)...")
 for message in consumer:
     # Periodically reload model to pick up retraining updates
     if time.time() - last_model_check > MODEL_RELOAD_INTERVAL:
