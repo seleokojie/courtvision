@@ -40,6 +40,32 @@ def extract_shot_type(description):
     }
 
 
+def extract_cdn_features(description):
+    """Extract CDN-style descriptor features from description text.
+    
+    These match the 12 CDN features used in the 26-feature model:
+    - 4 context flags (derived from description when possible)
+    - 8 descriptor one-hot features
+    """
+    desc_lower = description.lower() if description else ""
+    return {
+        # Context flags (limited detection from description)
+        'is_fastbreak': 1 if 'fast break' in desc_lower or 'fastbreak' in desc_lower else 0,
+        'is_second_chance': 1 if 'putback' in desc_lower or 'tip' in desc_lower else 0,
+        'is_from_turnover': 0,  # Cannot detect from description alone
+        'is_points_in_paint': 1 if 'paint' in desc_lower or 'lane' in desc_lower else 0,
+        # Descriptor one-hot encoded
+        'desc_pullup': 1 if 'pull-up' in desc_lower or 'pullup' in desc_lower or 'pull up' in desc_lower else 0,
+        'desc_driving': 1 if 'driving' in desc_lower else 0,
+        'desc_step_back': 1 if 'step back' in desc_lower or 'stepback' in desc_lower else 0,
+        'desc_fadeaway': 1 if 'fadeaway' in desc_lower or 'fade away' in desc_lower else 0,
+        'desc_running': 1 if 'running' in desc_lower else 0,
+        'desc_floating': 1 if 'floating' in desc_lower or 'floater' in desc_lower else 0,
+        'desc_turnaround': 1 if 'turnaround' in desc_lower or 'turn around' in desc_lower else 0,
+        'desc_cutting': 1 if 'cutting' in desc_lower or 'cut' in desc_lower else 0,
+    }
+
+
 def stream_data(file_path):
     # Wait for Kafka to wake up
     time.sleep(10)
@@ -86,12 +112,14 @@ def stream_data(file_path):
                 description = row['description']
                 distance = int(row['shot_distance'])
                 shot_types = extract_shot_type(description)
+                cdn_features = extract_cdn_features(description)
                 
                 # Determine if home team shot
                 is_home = 1 if (row['homedescription'] and row['homedescription'] != '') else 0
                 
                 event = {
                     "game_id": str(row['game_id']),
+                    "player_id": int(row['player1_id']) if row['player1_id'] else 0,
                     "player": str(row['player1_name']) if row['player1_name'] else "Unknown",
                     "distance": distance,
                     "period": int(row['period']) if row['period'] else 1,
@@ -99,6 +127,7 @@ def stream_data(file_path):
                     "is_three": 1 if distance > 23 else 0,
                     **shot_types,  # Unpack shot type features (includes is_pullup)
                     "is_home": is_home,
+                    **cdn_features,  # Unpack CDN features for 26-feature model
                     "result": row['event_type'],
                     "timestamp": time.time()
                 }

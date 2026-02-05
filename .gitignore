@@ -7,6 +7,18 @@ __pycache__/
 *.pkl
 model.pkl
 
+# CDN cache (raw JSON files from NBA CDN - large, regenerable)
+data/cdn_cache/
+
+# Generated/derived data files (can be regenerated from source)
+data/enriched_shots.parquet
+data/game_schedule.parquet
+data/injury_features.parquet
+data/player_metadata.parquet
+data/shots_with_injury.parquet
+data/player_cache.json
+data/player_failed.json
+
 # C extensions
 *.so
 
